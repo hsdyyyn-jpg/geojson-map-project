@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+    <meta charset="utf-8">
+    <title>Egyptian City</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+
+    <!-- Including the Mapbox GL CSS file -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+
+    <!-- Including the Mapbox GL JS file -->
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+
+    <style>
+        /* CSS styles for the layout and components */
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #map {
+            position: absolute; 
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        #side-panel {
+            position: absolute;  
+            z-index: 10;         
+            top: 10px;           
+            right: 10px;         
+            width: 350px;        
+            background: white;   
+            padding: 10px;
+            border-radius: 5px;  
+            max-height: 90vh;    
+            overflow-y: auto;    
+       }
+
+
+        @media (max-width: 1024px) {
+            #side-panel {
+                display: none; 
+            }
+      }
+
+        button {
+            margin-bottom: 10px;
+        }
+
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 16px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+    <main id="container">
+        <div id="side-panel">
+
+            <h2>EgyptianData</h2>
+            <button>Sort by Population</button>
+
+            <table>
+                <tr>
+                    <th>name</th>
+                    <th>population</th>
+                    <th>area</th>
+                </tr>
+            </table>
+
+        </div>
+        <div id="map"></div>
+
+    </main>
+    <script>
+        // Define the Mapbox access token
+        mapboxgl.accessToken =
+            'pk.eyJ1IjoiaHNkeXhyIiwiYSI6ImNtaGVidWVyZDBjdWoybG9rdW1hamp5d3QifQ.gOrRNqYcapgBbkZ2vN_Zfw';
+
+        // Create the map object
+        let map = new mapboxgl.Map({
+            container: 'map', // container ID
+            style: 'mapbox://styles/mapbox/light-v10', // style URL
+            zoom: 5, // starting zoom
+            center: [30.8, 26.8] // starting center
+        });
+
+
+        async function geojsonFetch() {
+
+            let response, table;
+            response = await fetch('assets/EgyptianCity.geojson');
+            let cities = await response.json(); 
+
+            response = await fetch('assets/EgyptianBoundry.geojson');
+            let boundary = await response.json(); 
+
+            table = document.getElementsByTagName("table")[0];
+            let row, cell1, cell2, cell3;
+            
+            
+            
+           for (let i = 0; i < cities.features.length; i++) { 
+ 
+                row = table.insertRow(-1); //insert a row at the end of the table
+                cell1 = row.insertCell(0); // insert name as first column
+                cell2 = row.insertCell(1); // insert population as second column
+                cell3 = row.insertCell(2); // insert area as third column
+
+                // Get properties of each feature
+                let props = cities.features[i].properties;
+
+                // Populate the table cells with data
+                cell1.innerHTML = props.name;
+                cell2.innerHTML = props.population;
+                cell3.innerHTML = props.area;
+         }
+
+
+            //load data to the map as new layers and table on the side.
+            map.on('load', function loadingData() {
+
+                map.addSource('egypt-boundary', {
+                    type: 'geojson',
+                    data: boundary 
+                });
+                map.addLayer({
+                    'id': 'boundary-layer',
+                    'type': 'fill',
+                    'source': 'egypt-boundary',
+                    'paint': {
+                        'fill-color': '#0080ff',
+                        'fill-opacity': 0.3
+                    }
+                });
+
+                map.addSource('egypt-cities', {
+                    type: 'geojson',
+                    data: cities
+                });
+                map.addLayer({
+                    'id': 'cities-layer',
+                    'type': 'circle',
+                    'source': 'egypt-cities',
+                    'paint': {
+                        'circle-radius': 6,
+                        'circle-color': '#FF0000' 
+                    }
+                });
+            });
+
+        }
+
+        geojsonFetch();
+
+        let btn = document.getElementsByTagName("button")[0];
+
+        btn.addEventListener('click', sortTable);
+
+        // define the function to sort table
+        function sortTable(e) {
+            let table, rows, switching, i, x, y, shouldSwitch;
+            table = document.getElementsByTagName("table")[0];
+            switching = true;
+            /*Make a loop that will continue until
+            no switching has been done:*/
+            while (switching) {
+                //start by saying: no switching is done:
+                switching = false;
+                rows = table.rows;
+                /*Loop through all table rows (except the
+                first, which contains table headers):*/
+                for (i = 1; i < (rows.length - 1); i++) {
+                    //start by saying there should be no switching:
+                    shouldSwitch = false;
+                    /*Get the two elements you want to compare,
+                    one from current row and one from the next:*/
+                    x = parseFloat(rows[i].getElementsByTagName("td")[1].innerHTML.replace(/,/g, ''));
+                    y = parseFloat(rows[i + 1].getElementsByTagName("td")[1].innerHTML.replace(/,/g, ''));
+                    //check if the two rows should switch place:
+                    if (x < y) {
+                        //if so, mark as a switch and break the loop:
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+                if (shouldSwitch) {
+                    /*If a switch has been marked, make the switch
+                    and mark that a switch has been done:*/
+                    rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                    switching = true;
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>
